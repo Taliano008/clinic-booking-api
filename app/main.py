@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.errors import register_error_handlers
@@ -13,6 +14,15 @@ app = FastAPI(
         "Times are accepted with any UTC offset and returned in clinic-local time."
     ),
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 register_error_handlers(app)
 app.include_router(doctors.router)
 app.include_router(appointments.router)

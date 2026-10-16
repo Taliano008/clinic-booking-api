@@ -193,10 +193,51 @@ make lint     # ruff + mypy
 ---
 
 ## 4. API summary
-_TODO (Day 2)_
 
-## 5. CI/CD
-_TODO (Day 4): public URL, deployment branch, and pipeline description._
+All endpoints return timestamps with explicit clinic offset (`+03:00`, `Africa/Nairobi`). Error responses adhere to the standard shape: `{"detail": "...", "code": "MACHINE_CODE"}`.
+
+| Method | Endpoint | Description | Status Codes |
+|---|---|---|---|
+| `GET` | `/health` | Service health & liveness check | `200` |
+| `GET` | `/doctors` | List active doctors | `200` |
+| `GET` | `/doctors/{id}/availability?date=YYYY-MM-DD` | Dynamic free 30-min slots for a given date | `200`, `404` |
+| `POST` | `/appointments` | Book a consultation slot | `201`, `404`, `409`, `422` |
+| `GET` | `/appointments/{id}` | Get appointment status & history | `200`, `404` |
+| `PATCH` | `/appointments/{id}/cancel` | Cancel an appointment with a reason | `200`, `404`, `409`, `422` |
+| `PATCH` | `/appointments/{id}/reschedule` | Move appointment to a new slot in one transaction | `200`, `404`, `409`, `422` |
+| `GET` | `/patients/{id}/appointments` | Upcoming active appointments for a patient | `200`, `404` |
+
+---
+
+## 5. CI/CD & Shipping Standards
+
+### 5.1 Continuous Integration & Deployment Pipeline
+Configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+1. **Automated Quality Checks (CI):**
+   - Spins up a real PostgreSQL 16 Alpine container with health checks.
+   - Code style and formatting verification (`ruff check . && ruff format --check .`).
+   - Strict static type checking (`mypy`).
+   - Migration integrity verification (`alembic upgrade head && alembic check`).
+   - Test suite with code coverage threshold (`pytest --cov --cov-report=term-missing`).
+2. **Container Build & Registry Publishing (CD):**
+   - Automatically executes on pushes/merges to `main`.
+   - Builds production Docker image with Buildx layer caching.
+   - Publishes tagged container images (`latest`, commit SHA) to GitHub Container Registry:
+     `ghcr.io/taliano008/clinic-booking-api:latest`.
+
+### 5.2 Branch Protection Standards (Recommended Ruleset)
+To maintain code quality and prevent regressions on `main`:
+1. **Require a Pull Request before merging:**
+   - Prohibit direct commits to `main`.
+   - Require at least 1 approving review from team members.
+2. **Require Status Checks to pass:**
+   - Require check: `Run Tests & Quality Checks` (the `test` job in GitHub Actions).
+   - Require branches to be up to date before merging.
+3. **Guardrails:**
+   - Block force pushes (`git push --force`).
+   - Block branch deletion.
+   - Enforce PR template ([`.github/pull_request_template.md`](.github/pull_request_template.md)).
+
 
 ## 6. AI reflection
 _TODO (Day 5)_. Written from my running notes in [`docs/ai-log.md`](docs/ai-log.md).

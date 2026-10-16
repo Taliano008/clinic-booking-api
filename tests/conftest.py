@@ -3,13 +3,17 @@ import os
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 from collections.abc import Iterator  # noqa: E402
+from datetime import time  # noqa: E402
 
 import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
-from app.models import Base, Doctor, Patient  # noqa: E402
+from app.database import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models import Base, Doctor, Patient, WorkingHours  # noqa: E402
 
 
 @pytest.fixture
@@ -41,8 +45,34 @@ def doctor(session: Session) -> Doctor:
 
 
 @pytest.fixture
+def doctor_with_schedule(session: Session) -> Doctor:
+    d = Doctor(name="Dr. Schedule", specialty="General Practice")
+    for weekday in range(0, 5):  # Mon-Fri
+        d.working_hours.append(
+            WorkingHours(weekday=weekday, start_time=time(8, 0), end_time=time(12, 0))
+        )
+        d.working_hours.append(
+            WorkingHours(weekday=weekday, start_time=time(13, 0), end_time=time(17, 0))
+        )
+    session.add(d)
+    session.commit()
+    return d
+
+
+@pytest.fixture
 def patient(session: Session) -> Patient:
     p = Patient(name="Pat", email="pat@example.com")
     session.add(p)
     session.commit()
     return p
+
+
+@pytest.fixture
+def client(session: Session) -> Iterator[TestClient]:
+    def _override_get_db() -> Iterator[Session]:
+        yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
