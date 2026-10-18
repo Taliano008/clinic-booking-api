@@ -211,7 +211,17 @@ All endpoints return timestamps with explicit clinic offset (`+03:00`, `Africa/N
 
 ## 5. CI/CD & Shipping Standards
 
-### 5.1 Continuous Integration & Deployment Pipeline
+### 5.1 Neon PostgreSQL
+The Neon project configuration is in [`neon.ts`](neon.ts). `neon deploy` writes connection
+settings to `.env.local`; that file is ignored by Git and loaded by the app. The API uses
+`DATABASE_URL` for pooled application traffic. Alembic prefers `DATABASE_URL_UNPOOLED` for
+schema migrations, as Neon requires a direct connection for migration tooling. Keep both
+values private and configure them as deployment secrets outside local development.
+
+Run `npm run build` for the Python source compilation check and `alembic upgrade head` to
+apply schema migrations to the configured database.
+
+### 5.2 Continuous Integration & Deployment Pipeline
 Configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 1. **Automated Quality Checks (CI):**
    - Spins up a real PostgreSQL 16 Alpine container with health checks.
@@ -225,7 +235,7 @@ Configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
    - Publishes tagged container images (`latest`, commit SHA) to GitHub Container Registry:
      `ghcr.io/taliano008/clinic-booking-api:latest`.
 
-### 5.2 Branch Protection Standards (Recommended Ruleset)
+### 5.3 Branch Protection Standards (Recommended Ruleset)
 To maintain code quality and prevent regressions on `main`:
 1. **Require a Pull Request before merging:**
    - Prohibit direct commits to `main`.

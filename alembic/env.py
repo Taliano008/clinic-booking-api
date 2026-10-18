@@ -1,4 +1,5 @@
 from alembic import context
+from app.config import get_settings
 from app.database import make_engine
 from app.models import Base
 
@@ -7,8 +8,13 @@ target_metadata = Base.metadata
 
 
 def run_migrations_online() -> None:
-    # DATABASE_URL (env/.env) is the single source of truth; allow override via -x url=...
-    url = context.get_x_argument(as_dictionary=True).get("url")
+    settings = get_settings()
+    # Neon migrations need the direct URL; keep DATABASE_URL pooled for app traffic.
+    url = (
+        context.get_x_argument(as_dictionary=True).get("url")
+        or settings.database_url_unpooled
+        or settings.database_url
+    )
     engine = make_engine(url)
     with engine.connect() as connection:
         context.configure(

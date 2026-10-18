@@ -8,3 +8,6 @@ __pycache__/
 .coverage
 htmlcov/
 *.db
+.neon
+node_modules/
+.env.local

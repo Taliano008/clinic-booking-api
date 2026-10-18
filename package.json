@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "build": "python -m compileall -q app alembic scripts"
+  },
+  "dependencies": {
+    "@neon/config": "^1.9.2",
+    "@neon/env": "^1.6.3"
+  }
+}
