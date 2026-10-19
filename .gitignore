@@ -11,3 +11,4 @@ htmlcov/
 .neon
 node_modules/
 .env.local
+uv.lock

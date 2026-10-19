@@ -68,6 +68,32 @@ def patient(session: Session) -> Patient:
 
 
 @pytest.fixture
+def second_patient(session: Session) -> Patient:
+    p = Patient(name="Pat Two", email="pat2@example.com")
+    session.add(p)
+    session.commit()
+    return p
+
+
+@pytest.fixture
+def auth_headers(patient: Patient) -> dict[str, str]:
+    from app.auth import create_access_token
+    from app.config import get_settings
+
+    token = create_access_token(patient.id, patient.email, get_settings())
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def auth_headers_second(second_patient: Patient) -> dict[str, str]:
+    from app.auth import create_access_token
+    from app.config import get_settings
+
+    token = create_access_token(second_patient.id, second_patient.email, get_settings())
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
 def client(session: Session) -> Iterator[TestClient]:
     def _override_get_db() -> Iterator[Session]:
         yield session

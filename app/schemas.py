@@ -25,12 +25,40 @@ ClinicDatetime = Annotated[
 ]
 
 
+# ---------- auth requests & responses ----------
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str = Field(description="Patient email address", examples=["patient1@example.com"])
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    patient_id: int
+    email: str
+
+
+class PatientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+    phone: str | None = None
+
+
 # ---------- requests ----------
 class AppointmentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     doctor_id: int = Field(gt=0, examples=[1])
-    patient_id: int = Field(gt=0, examples=[1])
+    patient_id: int | None = Field(
+        default=None,
+        gt=0,
+        description="Patient ID. If omitted, defaults to the authenticated patient.",
+        examples=[1],
+    )
     start_time: AwareDatetime = Field(
         description="Slot start, ISO-8601 WITH a UTC offset (naive times are rejected).",
         examples=["2030-01-08T10:00:00+03:00"],
