@@ -1,6 +1,12 @@
 ## Description
 <!-- Provide a brief description of the changes made and the motivation behind them. -->
 
+## Target Branch
+<!-- Please select the intended target branch:
+- [ ] staging (default: feature branches & non-emergency fixes)
+- [ ] main (production release promotion from staging, or emergency hotfix)
+-->
+
 ## Changes Checklist
 - [ ] Code follows the established PEP 8 / Ruff style guidelines (`make lint`)
 - [ ] New and existing tests pass locally with coverage (`make test`)

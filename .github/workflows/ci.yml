@@ -2,8 +2,9 @@ name: CI/CD
 
 on:
   pull_request:
+    branches: [main, staging]
   push:
-    branches: [main]
+    branches: [main, staging]
 
 jobs:
   test:
@@ -43,7 +44,7 @@ jobs:
   publish-docker:
     name: Build & Publish Docker Image (GHCR)
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -68,7 +69,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/staging' }}
             type=sha,format=short
             type=ref,event=branch
 

@@ -221,32 +221,66 @@ values private and configure them as deployment secrets outside local developmen
 Run `npm run build` for the Python source compilation check and `alembic upgrade head` to
 apply schema migrations to the configured database.
 
-### 5.2 Continuous Integration & Deployment Pipeline
+### 5.2 Branching Strategy & Environments
+The repository follows a multi-tier branching and deployment workflow:
+- `feature/*` & `fix/*`: Developer working branches created from `staging`. All non-emergency work happens here.
+- `staging`: Integration and pre-production branch. Features are merged into `staging` via Pull Requests.
+  - Automatically triggers CI quality checks.
+  - Builds and publishes container images tagged `staging` (`ghcr.io/taliano008/clinic-booking-api:staging`) and commit SHA.
+  - Serves as the candidate for staging QA and verification before production.
+- `main`: Production release branch. Merged strictly from `staging` via PR (or critical `hotfix/*` branches).
+  - Strictly protected against direct commits or unverified merges.
+  - Automatically builds and publishes container images tagged `latest` (`ghcr.io/taliano008/clinic-booking-api:latest`) and commit SHA.
+
+```
+feature/xyz  ──PR──>  staging (pre-prod / tests / :staging)  ──PR──>  main (production / :latest)
+                             ^
+                             | (sync)
+hotfix/fix   ────────────────┴─────────────────────────────────PR──>  main
+```
+
+### 5.3 Continuous Integration & Deployment Pipeline
 Configured in [`.github/workflows/ci.yml`](.github/workflows/ci.yml):
 1. **Automated Quality Checks (CI):**
+   - Triggers on pull requests and pushes to `main` and `staging`.
    - Spins up a real PostgreSQL 16 Alpine container with health checks.
    - Code style and formatting verification (`ruff check . && ruff format --check .`).
    - Strict static type checking (`mypy`).
    - Migration integrity verification (`alembic upgrade head && alembic check`).
    - Test suite with code coverage threshold (`pytest --cov --cov-report=term-missing`).
 2. **Container Build & Registry Publishing (CD):**
-   - Automatically executes on pushes/merges to `main`.
-   - Builds production Docker image with Buildx layer caching.
-   - Publishes tagged container images (`latest`, commit SHA) to GitHub Container Registry:
-     `ghcr.io/taliano008/clinic-booking-api:latest`.
+   - Automatically executes on pushes to `main` and `staging` after test suite succeeds.
+   - Builds Docker image with Buildx layer caching.
+   - Publishes tagged container images to GitHub Container Registry:
+     - On `main`: `ghcr.io/taliano008/clinic-booking-api:latest` + SHA
+     - On `staging`: `ghcr.io/taliano008/clinic-booking-api:staging` + SHA
 
-### 5.3 Branch Protection Standards (Recommended Ruleset)
-To maintain code quality and prevent regressions on `main`:
-1. **Require a Pull Request before merging:**
-   - Prohibit direct commits to `main`.
-   - Require at least 1 approving review from team members.
-2. **Require Status Checks to pass:**
-   - Require check: `Run Tests & Quality Checks` (the `test` job in GitHub Actions).
-   - Require branches to be up to date before merging.
-3. **Guardrails:**
-   - Block force pushes (`git push --force`).
-   - Block branch deletion.
-   - Enforce PR template ([`.github/pull_request_template.md`](.github/pull_request_template.md)).
+### 5.4 Branch Protection Configuration Guide (GitHub Repository Settings)
+Branch protection must be configured in GitHub (**Settings > Branches > Add branch protection rule** or **Settings > Rulesets**):
+
+#### 1. Protection for `main` (Production - Strict)
+- **Branch name pattern:** `main`
+- **Protect matching branches:**
+  - [x] **Require a pull request before merging**
+    - [x] Require approvals: at least **1** approving review
+    - [x] Dismiss stale pull request approvals when new commits are pushed
+  - [x] **Require status checks to pass before merging**
+    - [x] Require branches to be up to date before merging (`Strict`)
+    - Status check name: `Run Tests & Quality Checks`
+  - [x] **Require conversation resolution before merging**
+  - [x] **Do not allow bypassing the above settings** (enforce for administrators)
+  - [x] **Block force pushes** (disallow `git push --force`)
+  - [x] **Block branch deletion**
+
+#### 2. Protection for `staging` (Integration)
+- **Branch name pattern:** `staging`
+- **Protect matching branches:**
+  - [x] **Require a pull request before merging**
+  - [x] **Require status checks to pass before merging**
+    - Status check name: `Run Tests & Quality Checks`
+  - [x] **Require conversation resolution before merging**
+  - [x] **Block force pushes** (disallow `git push --force`)
+  - [x] **Block branch deletion**
 
 
 ## 6. AI reflection
