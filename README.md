@@ -2,14 +2,13 @@
 
 REST API for a small clinic (5 doctors, 30-minute slots) to let patients view free slots, book, cancel and reschedule.
 
-> **Status:** Day 1 complete (design, models, migration, seed, schema tests).
-> Endpoints, deployment and CI/CD follow. Sections marked _TODO_ are filled in as they're built.
+> **Status:** Fully built, tested, and deployed live on Render with Neon PostgreSQL.
 
 | | |
 |---|---|
-| **Live URL** | _TODO (Section 3)_ |
-| **API docs** | _TODO_ `<live-url>/docs` |
-| **Stack** | Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, PostgreSQL, pytest, GitHub Actions |
+| **Live URL** | [https://clinic-booking-api-oewb.onrender.com](https://clinic-booking-api-oewb.onrender.com) |
+| **API docs** | [https://clinic-booking-api-oewb.onrender.com/docs](https://clinic-booking-api-oewb.onrender.com/docs) |
+| **Stack** | Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, PostgreSQL (Neon), pytest, GitHub Actions, Render |
 
 ---
 
@@ -292,8 +291,27 @@ Branch protection must be configured in GitHub (**Settings > Branches > Add bran
   - [x] **Block branch deletion**
 
 
-## 6. AI reflection
-_TODO (Day 5)_. Written from my running notes in [`docs/ai-log.md`](docs/ai-log.md).
+## 6. AI Reflection
+
+### 6.1 What did you use AI for across the four sections?
+- **Section 1 (System Design):** Brainstorming concurrency edge cases in slot arithmetic (handling `:00`/`:30` alignment and lead times), discussing trade-offs between materializing slots vs. on-the-fly generation, and drafting the Mermaid ER diagram.
+- **Section 2 (API Implementation):** Scaffolding Pydantic schemas, validating UTC timezone serialization/deserialization logic, implementing pure functions in `app/services/slots.py`, and implementing JWT authentication and patient-scoped authorization dependencies.
+- **Section 3 (Deployment & CI/CD):** Drafting the GitHub Actions CI workflow with containerized PostgreSQL health checks, troubleshooting multi-stage Docker builds, and configuring cloud deployment settings for Render and Neon PostgreSQL connection pooling.
+- **Testing & Verification:** Generating unit and integration test fixtures, and building an automated end-to-end verification script (`scripts/test_live_features.py`) exercising 21 distinct system checks against live databases.
+
+### 6.2 Give one example where an AI suggestion improved your work. What did you prompt it with?
+- **Prompt:** *"How can we guarantee at the database level that no two concurrent requests double-book the same 30-minute doctor slot, while still keeping cancelled appointments in the table for audit history without violating uniqueness?"*
+- **Improvement:** The AI suggested using a **partial unique index** (`WHERE status = 'booked'`) on `appointments(doctor_id, start_time)` rather than soft-deleting rows or relying on application-level locks (`SELECT FOR UPDATE`). This allows cancelled appointments to remain intact with their mandatory cancellation reasons and timestamps for auditing, without permanently blocking the slot from being re-booked. It is declarative, natively supported by PostgreSQL and SQLite, and eliminated the need for complex locking logic.
+
+### 6.3 Give one example where AI output was wrong or incomplete and how you caught it.
+- **Example:** When generating the cross-patient security check in the live feature test suite, the AI initially hardcoded the target victim patient ID as `patient_id: 2`. However, in the real PostgreSQL database on Neon, the auto-increment sequence had assigned the authenticated testing patient `id: 2` (and the second patient `id: 3`). Because of this assumption, the request was treated as an authorized self-booking rather than a cross-patient spoof, causing the `403 Forbidden` test to fail.
+- **How I caught it:** I caught it by inspecting the failure log in the automated test runner, identifying the mismatch in the primary key sequence, and refactoring the script to dynamically extract and assert against the actual IDs returned by the `/auth/token` login response rather than relying on hardcoded integers.
+
+### 6.4 Name two decisions you made without AI. Why did you trust your own judgment there?
+1. **Computing availability on the fly rather than materializing slot rows:**
+   - *Reasoning:* AI templates frequently suggest generating a static `slots` table populated days or weeks in advance. For a 5-doctor clinic, this introduces substantial synchronization complexity: altering a doctor's working hours requires deleting or backfilling future slot rows, and introduces a secondary source of truth that can get out of sync with actual appointments. Computing slots dynamically (`working_hours` blocks minus active `booked` appointments) is deterministic, has zero state drift, and reflects doctor schedule adjustments immediately.
+2. **Storing instants in UTC while keeping working schedules in clinic-local wall-clock time:**
+   - *Reasoning:* AI models often convert all database datetimes to UTC indiscriminately. However, clinic operating hours are fundamentally wall-clock concepts (e.g. "Dr. Amina works 08:00 to 17:00 Nairobi time"). If schedules were stored converted to UTC, any future daylight saving changes or shifts in time zone conventions would subtly skew the doctor's real working day. Storing working hours as clinic-local wall-clock times and appointment instants as UTC `timestamptz` ensures complete time integrity.
 
 ## 7. What I'd do next
 - [x] **Authentication/authorisation (patients can only act on their own appointments)** *(Completed: JWT auth + patient ownership authorization)*
