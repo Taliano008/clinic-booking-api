@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
 from app.errors import register_error_handlers
-from app.routers import appointments, doctors, patients
+from app.routers import appointments, auth, doctors, patients
 
 app = FastAPI(
     title="Clinic Booking API",
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 register_error_handlers(app)
+app.include_router(auth.router)
 app.include_router(doctors.router)
 app.include_router(appointments.router)
 app.include_router(patients.router)

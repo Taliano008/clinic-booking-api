@@ -196,16 +196,25 @@ make lint     # ruff + mypy
 
 All endpoints return timestamps with explicit clinic offset (`+03:00`, `Africa/Nairobi`). Error responses adhere to the standard shape: `{"detail": "...", "code": "MACHINE_CODE"}`.
 
-| Method | Endpoint | Description | Status Codes |
-|---|---|---|---|
-| `GET` | `/health` | Service health & liveness check | `200` |
-| `GET` | `/doctors` | List active doctors | `200` |
-| `GET` | `/doctors/{id}/availability?date=YYYY-MM-DD` | Dynamic free 30-min slots for a given date | `200`, `404` |
-| `POST` | `/appointments` | Book a consultation slot | `201`, `404`, `409`, `422` |
-| `GET` | `/appointments/{id}` | Get appointment status & history | `200`, `404` |
-| `PATCH` | `/appointments/{id}/cancel` | Cancel an appointment with a reason | `200`, `404`, `409`, `422` |
-| `PATCH` | `/appointments/{id}/reschedule` | Move appointment to a new slot in one transaction | `200`, `404`, `409`, `422` |
-| `GET` | `/patients/{id}/appointments` | Upcoming active appointments for a patient | `200`, `404` |
+### 4.1 Authentication & Authorization
+Patient actions require a Bearer JWT token in the `Authorization: Bearer <token>` header. Patients are strictly scoped to their own data:
+- A patient can only book, view, cancel, or reschedule appointments belonging to themselves.
+- Attempting to access or alter another patient's appointment returns `403 Forbidden` (`code: FORBIDDEN`).
+- Unauthenticated requests to protected endpoints return `401 Unauthorized` (`code: UNAUTHORIZED`).
+
+| Method | Endpoint | Description | Status Codes | Auth Required |
+|---|---|---|---|---|
+| `GET` | `/health` | Service health & liveness check | `200` | No |
+| `POST` | `/auth/token` | Issue JWT bearer token for patient email | `200`, `404` | No |
+| `GET` | `/auth/me` | Current authenticated patient profile | `200`, `401` | Yes |
+| `GET` | `/doctors` | List active doctors | `200` | No |
+| `GET` | `/doctors/{id}/availability?date=YYYY-MM-DD` | Dynamic free 30-min slots for a given date | `200`, `404` | No |
+| `POST` | `/appointments` | Book consultation slot (scoped to current patient) | `201`, `401`, `403`, `404`, `409`, `422` | Yes |
+| `GET` | `/appointments/{id}` | Get appointment status & history (own appointments only) | `200`, `401`, `403`, `404` | Yes |
+| `PATCH` | `/appointments/{id}/cancel` | Cancel appointment with reason (own appointments only) | `200`, `401`, `403`, `404`, `409`, `422` | Yes |
+| `PATCH` | `/appointments/{id}/reschedule` | Move appointment to new slot (own appointments only) | `200`, `401`, `403`, `404`, `409`, `422` | Yes |
+| `GET` | `/patients/me/appointments` | Upcoming active appointments for current patient | `200`, `401` | Yes |
+| `GET` | `/patients/{id}/appointments` | Upcoming active appointments for patient | `200`, `401`, `403`, `404` | Yes |
 
 ---
 
@@ -287,7 +296,7 @@ Branch protection must be configured in GitHub (**Settings > Branches > Add bran
 _TODO (Day 5)_. Written from my running notes in [`docs/ai-log.md`](docs/ai-log.md).
 
 ## 7. What I'd do next
-- Authentication/authorisation (patients can only act on their own appointments)
-- Schedule exceptions (holidays, leave)
-- Exclusion constraint if appointment lengths vary
-- Availability caching, rate limiting, structured logging and metrics
+- [x] **Authentication/authorisation (patients can only act on their own appointments)** *(Completed: JWT auth + patient ownership authorization)*
+- [ ] Schedule exceptions (holidays, leave)
+- [ ] Exclusion constraint if appointment lengths vary
+- [ ] Availability caching, rate limiting, structured logging and metrics

@@ -27,6 +27,18 @@ class NotFoundError(AppError):
     status_code = 404
 
 
+class UnauthorizedError(AppError):
+    """Authentication required or failed (missing, invalid, or expired token)."""
+
+    status_code = 401
+
+
+class ForbiddenError(AppError):
+    """Action forbidden for the authenticated patient (accessing another patient's data)."""
+
+    status_code = 403
+
+
 class ConflictError(AppError):
     """State conflict: the request is valid but clashes with current data (slot taken, ...)."""
 

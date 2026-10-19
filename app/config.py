@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     clinic_timezone: str = "Africa/Nairobi"  # working hours are expressed in this zone
     slot_minutes: int = 30
     min_lead_minutes: int = 60  # bonus rule: no bookings closer than this to "now"
+    jwt_secret_key: str = "clinic-booking-dev-secret-key-change-in-production-32bytes"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440  # 24 hours
 
 
 @lru_cache
